@@ -8,7 +8,7 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@google/genai": "^1.0.0"
+    "@google/generative-ai": "^0.21.0"
   },
   "scripts": {
     "set-webhook": "node scripts/set-webhook.js"
