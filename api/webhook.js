@@ -1,5 +1,6 @@
-import { scoreNote, draftPost } from "../lib/gemini.js";
+import { scoreNote, extractKeywords, draftPost } from "../lib/gemini.js";
 import { sendMessage, sendTypingAction } from "../lib/telegram.js";
+import { fetchNewsArticle } from "../lib/news.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -36,7 +37,11 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    const draft = await draftPost(note);
+    // Extract keywords and fetch a news article in parallel
+    const keywords = await extractKeywords(note);
+    const newsItem = await fetchNewsArticle(keywords).catch(() => null);
+
+    const draft = await draftPost(note, newsItem);
     await sendMessage(chatId, `✍️ Here's your draft:\n\n${draft}`);
   } catch (err) {
     console.error("Error generating draft:", err);
