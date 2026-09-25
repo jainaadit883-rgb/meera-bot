@@ -1,6 +1,7 @@
 import { scoreNote, extractKeywords, draftPost } from "../lib/gemini.js";
 import { sendMessage, sendTypingAction } from "../lib/telegram.js";
 import { fetchNewsArticle } from "../lib/news.js";
+import { saveNote, saveDraft, updateLatestDraftStatus } from "../lib/supabase.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -24,9 +25,24 @@ export default async function handler(req, res) {
   const chatId = message.chat.id;
   const note = message.text;
 
+  // Handle approval/rejection of the last pending draft
+  const command = note.trim().toUpperCase();
+  if (command === "APPROVE" || command === "REJECT") {
+    const status = command === "APPROVE" ? "approved" : "rejected";
+    const updated = await updateLatestDraftStatus(status).catch(() => false);
+    await sendMessage(
+      chatId,
+      updated
+        ? `✅ Draft marked as ${status}.`
+        : "No pending draft found to update."
+    );
+    return res.status(200).json({ ok: true });
+  }
+
   await sendTypingAction(chatId).catch(() => {});
 
   try {
+    const noteId = await saveNote(note).catch(() => null);
     const { score, reason } = await scoreNote(note);
 
     if (score < 6) {
@@ -42,12 +58,13 @@ export default async function handler(req, res) {
     const newsItem = await fetchNewsArticle(keywords).catch(() => null);
 
     const draft = await draftPost(note, newsItem);
+    await saveDraft(noteId, draft).catch(() => null);
 
     const verifyBlock = newsItem
       ? `\n\n─────────────────────────────────\nNEWS SOURCE: ${newsItem.title}\nFROM: ${newsItem.source} · ${newsItem.pubDate}\nLINK: ${newsItem.link}\n⚠ Check this before publishing — you are the author of this claim\n─────────────────────────────────`
       : "";
 
-    await sendMessage(chatId, `✍️ Here's your draft:\n\n${draft}${verifyBlock}`);
+    await sendMessage(chatId, `✍️ Here's your draft:\n\n${draft}${verifyBlock}\n\nReply APPROVE or REJECT to log your decision.`);
   } catch (err) {
     console.error("Error generating draft:", err);
     await sendMessage(
