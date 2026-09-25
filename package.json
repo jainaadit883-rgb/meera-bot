@@ -1,0 +1,16 @@
+{
+  "name": "meera-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot that turns Meera's notes into draft posts via Gemini",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0"
+  },
+  "scripts": {
+    "set-webhook": "node scripts/set-webhook.js"
+  }
+}
