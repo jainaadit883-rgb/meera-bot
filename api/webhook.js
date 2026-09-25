@@ -1,4 +1,4 @@
-import { draftPost } from "../lib/gemini.js";
+import { scoreNote, draftPost } from "../lib/gemini.js";
 import { sendMessage, sendTypingAction } from "../lib/telegram.js";
 
 export default async function handler(req, res) {
@@ -6,7 +6,6 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // Reject requests that don't carry the right secret header (if one is configured)
   const secret = req.headers["x-telegram-bot-api-secret-token"];
   if (
     process.env.TELEGRAM_WEBHOOK_SECRET &&
@@ -17,7 +16,6 @@ export default async function handler(req, res) {
 
   const { message } = req.body ?? {};
 
-  // Ignore anything without a text message (photos, stickers, etc.)
   if (!message?.text) {
     return res.status(200).json({ ok: true });
   }
@@ -25,10 +23,19 @@ export default async function handler(req, res) {
   const chatId = message.chat.id;
   const note = message.text;
 
-  // Show typing indicator while Gemini thinks
   await sendTypingAction(chatId).catch(() => {});
 
   try {
+    const { score, reason } = await scoreNote(note);
+
+    if (score < 6) {
+      await sendMessage(
+        chatId,
+        `⛔ Not drafted (score ${score}/10)\n\n${reason}`
+      );
+      return res.status(200).json({ ok: true });
+    }
+
     const draft = await draftPost(note);
     await sendMessage(chatId, `✍️ Here's your draft:\n\n${draft}`);
   } catch (err) {
