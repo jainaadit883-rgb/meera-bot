@@ -42,7 +42,12 @@ export default async function handler(req, res) {
     const newsItem = await fetchNewsArticle(keywords).catch(() => null);
 
     const draft = await draftPost(note, newsItem);
-    await sendMessage(chatId, `✍️ Here's your draft:\n\n${draft}`);
+
+    const verifyBlock = newsItem
+      ? `\n\n─────────────────────────────────\nNEWS SOURCE: ${newsItem.title}\nFROM: ${newsItem.source} · ${newsItem.pubDate}\nLINK: ${newsItem.link}\n⚠ Check this before publishing — you are the author of this claim\n─────────────────────────────────`
+      : "";
+
+    await sendMessage(chatId, `✍️ Here's your draft:\n\n${draft}${verifyBlock}`);
   } catch (err) {
     console.error("Error generating draft:", err);
     await sendMessage(
